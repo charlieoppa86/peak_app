@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "493614234864",
+    "project_id": "peak-dev-32717",
+    "storage_bucket": "peak-dev-32717.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:493614234864:android:8494f404d49f909ed21635",
+        "android_client_info": {
+          "package_name": "com.example.peak_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "YOUR_ANDROID_API_KEY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

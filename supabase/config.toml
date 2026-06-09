@@ -1,0 +1,12 @@
+[project]
+project_id = "aulhqkkumomdbryxyskr"
+
+[api]
+enabled = true
+port = 54321
+
+[auth]
+enabled = true
+
+[functions.weather-forecast]
+verify_jwt = false
