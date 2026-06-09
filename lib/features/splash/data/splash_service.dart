@@ -23,7 +23,8 @@ abstract final class SplashService {
   /// 서버에서 최소 요구 버전·최신 버전을 받아 현재 버전과 비교.
   /// 프로덕션: Firebase Remote Config 또는 자체 API 사용.
   static Future<VersionStatus> checkVersion() async {
-    // Mock: 실제 구현 시 Firebase Remote Config 또는 자체 API로 교체
+    // Mock: 서버 응답 시뮬레이션
+    await Future.delayed(const Duration(milliseconds: 800));
     const serverMin = (major: 1, minor: 0, patch: 0);
     const serverLatest = (major: 1, minor: 0, patch: 0);
 
@@ -35,7 +36,7 @@ abstract final class SplashService {
   /// 홈 화면에 필요한 데이터 프리패치. 실패 시 호출부가 무시(skip).
   /// 프로덕션: 날씨 API·유저 설정 등을 앱 전역 캐시에 저장.
   static Future<void> prefetchHomeData() async {
-    // 프로덕션: 날씨 API·유저 설정 등을 앱 전역 캐시에 저장
+    await Future.delayed(const Duration(milliseconds: 600));
   }
 
   static bool _olderThan(
