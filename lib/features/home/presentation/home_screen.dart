@@ -719,12 +719,23 @@ class _RecommendationContent extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                '오늘의 라이딩',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '오늘의 라이딩',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    _todayLabel(),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
               ),
               const Spacer(),
               Container(
@@ -810,6 +821,11 @@ class _InfoChip extends StatelessWidget {
       ),
     );
   }
+}
+
+String _todayLabel() {
+  final now = DateTime.now();
+  return '${now.month}월 ${now.day}일 (${_weekdayLabels[now.weekday - 1]})';
 }
 
 String _dateLabel(DateTime date) {
