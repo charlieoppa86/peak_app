@@ -70,6 +70,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '493614234864',
     projectId: 'peak-dev-32717',
     storageBucket: 'peak-dev-32717.firebasestorage.app',
-    iosBundleId: 'com.example.peakApp',
+    iosBundleId: 'com.charlieoppa86.peak',
   );
 }
