@@ -1,5 +1,3 @@
-// 다른 API로 바꿀 때: KmaHourlyWeather는 API 교체 시 필드 변경, RidingRecommendation은 Flutter 모델과 1:1이므로 유지
-
 // 기상청 API 응답 원본 항목
 export interface KmaForecastItem {
   baseDate: string;
@@ -44,6 +42,5 @@ export type ErrorCode =
   | 'KMA_HTTP_5XX'
   | 'KMA_API_ERROR'
   | 'KMA_EMPTY_RESPONSE'
-  | 'GEMINI_ERROR'
   | 'CONFIG_ERROR'
   | 'INTERNAL_ERROR';

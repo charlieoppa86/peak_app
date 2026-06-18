@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/services/admob_service.dart';
+import '../../../core/services/admob_service.dart' show requestAttIfNeeded;
 import '../data/splash_service.dart';
 
 /// 스플래시 — 앱 진입 직후 버전 체크·네트워크 체크·데이터 프리패치를 병렬 처리.
@@ -38,15 +38,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _runStartup() async {
     while (true) {
-      // ATT 권한 요청 + 광고 프리로드를 startup과 병렬로 시작 (iOS 전용, 실패해도 무시)
-      final adFuture = AdMobService.instance.requestAttAndLoad();
-
-      // 3가지를 동시에 시작
+      // ATT 권한 요청(iOS 전용)·네트워크·버전·프리패치를 병렬로 시작
       final networkFuture = SplashService.checkNetwork();
       final versionFuture = SplashService.checkVersion();
       final prefetchFuture = _safePrefetch();
+      requestAttIfNeeded(); // 결과 대기 불필요, fire-and-forget
 
-      // 네트워크 결과를 먼저 확인 (나머지는 백그라운드에서 계속 실행 중)
       final hasNetwork = await networkFuture;
       if (!mounted) return;
 
@@ -55,21 +52,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         if (!mounted) return;
         if (retry) {
           _setStatus('재연결 확인 중...');
-          continue; // 전체 루프 재시작 (3가지 모두 재실행)
+          continue;
         }
         return;
       }
 
       _setStatus('버전 확인 중...');
 
-      // 네트워크 OK — version·prefetch는 이미 실행 중이므로 결과만 수거
       final versionStatus = await versionFuture;
-      await prefetchFuture; // 실패는 _safePrefetch 내부에서 흡수됨
+      await prefetchFuture;
       if (!mounted) return;
 
       switch (versionStatus) {
         case VersionStatus.forceUpdate:
-          await _showForceUpdateDialog(); // 탈출 불가, 여기서 앱 흐름 멈춤
+          await _showForceUpdateDialog();
           return;
 
         case VersionStatus.optionalUpdate:
@@ -85,15 +81,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       }
 
       if (!mounted) return;
-
-      // 광고 로드가 아직 진행 중이면 최대 6초 대기 후 노출 시도
-      await adFuture.timeout(const Duration(seconds: 6), onTimeout: () {});
-      if (!mounted) return;
-
-      // 광고 노출 후 홈 이동 (광고 없으면 즉시 이동)
-      AdMobService.instance.showIfAvailable(
-        onComplete: () { if (mounted) context.go('/home'); },
-      );
+      context.go('/home');
       return;
     }
   }
@@ -257,7 +245,7 @@ class _LogoArea extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          '날씨 보고 라이딩 잡는 앱',
+          '라이더를 위한 단 하나의 앱',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 color: Colors.white54,
               ),

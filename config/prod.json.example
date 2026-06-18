@@ -1,3 +1,4 @@
 {
-  "ADMOB_APP_OPEN_ID": "ca-app-pub-여기에실제앱ID/여기에실제광고단위ID"
+  "ADMOB_BANNER_ID_ANDROID": "ca-app-pub-여기에실제Android배너광고단위ID",
+  "ADMOB_BANNER_ID_IOS": "ca-app-pub-여기에실제iOS배너광고단위ID"
 }

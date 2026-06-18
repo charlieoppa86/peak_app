@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/providers/app_providers.dart';
+import '../../../core/services/admob_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/notification_bell_button.dart';
 import '../data/home_mock_data.dart';
@@ -26,7 +27,12 @@ class HomeScreen extends StatelessWidget {
         title: const Text('홈'),
         actions: const [NotificationBellButton()],
       ),
-      body: const _HomeBody(),
+      body: const Column(
+        children: [
+          Expanded(child: _HomeBody()),
+          BannerAdWidget(),
+        ],
+      ),
     );
   }
 }
@@ -720,7 +726,7 @@ class _RecommendationContent extends StatelessWidget {
           Row(
             children: [
               Text(
-                '오늘의 라이딩',
+                '오늘의 날씨',
                 style: Theme.of(context)
                     .textTheme
                     .titleSmall

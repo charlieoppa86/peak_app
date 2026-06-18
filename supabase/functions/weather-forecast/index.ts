@@ -35,11 +35,10 @@ type ErrorCode =
   | 'KMA_HTTP_5XX'
   | 'KMA_API_ERROR'
   | 'KMA_EMPTY_RESPONSE'
-  | 'GEMINI_ERROR'
   | 'CONFIG_ERROR'
   | 'INTERNAL_ERROR';
 
-// ─── Coordinate (다른 API로 바꿀 때: Open-Meteo 등은 이 함수 불필요) ────────
+// ─── Coordinate ───────────────────────────────────────────────────────────────
 
 function latLngToGrid(lat: number, lng: number): { nx: number; ny: number } {
   const RE = 6371.00877;
@@ -72,7 +71,7 @@ function latLngToGrid(lat: number, lng: number): { nx: number; ny: number } {
   };
 }
 
-// ─── KMA Client (다른 API로 바꿀 때: 이 함수 전체 교체) ──────────────────────
+// ─── KMA Client ───────────────────────────────────────────────────────────────
 
 const KMA_URL =
   'https://apihub.kma.go.kr/api/typ02/openApi/VilageFcstInfoService_2.0/getVilageFcst';
@@ -104,14 +103,13 @@ async function fetchKmaForecast(opts: {
     ny: String(opts.ny),
     authKey: opts.serviceKey,
   });
-  const url = `${KMA_URL}?${params}`;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   let res: Response;
   try {
-    res = await fetch(url, { signal: controller.signal });
+    res = await fetch(`${KMA_URL}?${params}`, { signal: controller.signal });
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
       throw new KmaError('KMA_TIMEOUT', '기상청 API가 10초 내에 응답하지 않았습니다');
@@ -166,15 +164,15 @@ function getBaseDateTime(now: Date): { baseDate: string; baseTime: string } {
   };
 }
 
-// ─── KMA Mapper (다른 API로 바꿀 때: 카테고리 코드와 레이블 함수 교체) ────────
+// ─── KMA Mapper ───────────────────────────────────────────────────────────────
 
 function skyLabel(val: string): string {
   return ({ '1': '맑음', '3': '구름많음', '4': '흐림' } as Record<string, string>)[val] ?? '알 수 없음';
 }
 function precipLabel(val: string): string {
   return (
-    ({ '0': '없음', '1': '비', '2': '비·눈', '3': '눈', '4': '소나기' } as Record<string, string>)[val] ?? '알 수 없음'
-  );
+    { '0': '없음', '1': '비', '2': '비·눈', '3': '눈', '4': '소나기' } as Record<string, string>
+  )[val] ?? '알 수 없음';
 }
 function windLabel(mps: number): string {
   if (mps < 3) return '약풍';
@@ -212,76 +210,135 @@ function todayKst(now: Date): string {
   return kst.toISOString().slice(0, 10).replace(/-/g, '');
 }
 
-// ─── Gemini Client (다른 AI로 바꿀 때: URL과 buildBody 요청 포맷 교체) ────────
+// ─── Rule-based Riding Analyzer ───────────────────────────────────────────────
 
-const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+type HourScore = 2 | 1 | 0; // 2=추천, 1=보통, 0=비추천
 
-const SYSTEM_PROMPT = `
-당신은 로드바이커를 위한 날씨 분석 전문가입니다.
-오늘의 시간별 날씨 데이터를 분석해 라이딩 추천 정보를 JSON으로만 반환하세요.
+function scoreHour(h: KmaHourlyWeather): HourScore {
+  const hasRain = h.precipLabel !== '없음';
+  const tempGood = h.temperature >= 10 && h.temperature <= 25;
+  const windGood = h.windSpeed < 5;
+  const tempExtreme = h.temperature < 0 || h.temperature > 35;
+  const windStrong = h.windSpeed >= 10;
 
-판단 기준:
-- 추천: 강수 없음 + 기온 10~25°C + 풍속 5m/s 미만
-- 보통: 약한 강수 또는 기온 5~30°C 또는 풍속 5~10m/s
-- 비추천: 강수 있음 + 풍속 10m/s 초과 또는 기온 0°C 미만·35°C 초과
+  if (!hasRain && tempGood && windGood) return 2;
+  if (tempExtreme || windStrong) return 0;
+  return 1;
+}
 
-recommendedTimeSlot: 연속 2~3시간 중 가장 조건 좋은 구간을 "HH시~HH시" 형식으로.
-전일 라이딩 불가 시 recommendedTimeSlot은 "없음"으로 설정.
-`.trim();
+function findBestWindow(
+  hours: KmaHourlyWeather[],
+): { start: string; end: string; level: '추천' | '보통' | '비추천' } | null {
+  const daytime = hours.filter((h) => {
+    const hh = parseInt(h.time.slice(0, 2));
+    return hh >= 6 && hh <= 20;
+  });
+  if (daytime.length === 0) return null;
 
-async function processWithGemini(
-  hourlyData: KmaHourlyWeather[],
-  apiKey: string,
-): Promise<RidingRecommendation> {
-  const body = {
-    contents: [
-      {
-        parts: [
-          {
-            text: `${SYSTEM_PROMPT}\n\n오늘의 시간별 날씨:\n${JSON.stringify(hourlyData, null, 2)}\n\n위 데이터를 분석해 JSON만 반환하세요.`,
-          },
-        ],
-      },
-    ],
-    generationConfig: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: 'OBJECT',
-        properties: {
-          weather: { type: 'STRING' },
-          temperature: { type: 'STRING' },
-          wind: { type: 'STRING' },
-          recommendedTimeSlot: { type: 'STRING' },
-          recommendation: { type: 'STRING', enum: ['추천', '보통', '비추천'] },
-          reason: { type: 'STRING' },
-        },
-        required: ['weather', 'temperature', 'wind', 'recommendedTimeSlot', 'recommendation', 'reason'],
-      },
-    },
+  let best: { start: string; end: string; score: number; minScore: HourScore } | null = null;
+
+  for (const size of [3, 2]) {
+    for (let i = 0; i <= daytime.length - size; i++) {
+      const w = daytime.slice(i, i + size);
+      const scores = w.map(scoreHour);
+      const total = scores.reduce((a, b) => a + b, 0);
+      const minScore = Math.min(...scores) as HourScore;
+      if (!best || total > best.score || (total === best.score && minScore > best.minScore)) {
+        best = {
+          start: `${w[0].time.slice(0, 2)}시`,
+          end: `${String(parseInt(w[w.length - 1].time.slice(0, 2)) + 1).padStart(2, '0')}시`,
+          score: total,
+          minScore,
+        };
+      }
+    }
+    if (best && best.minScore === 2) break;
+  }
+
+  if (!best) return null;
+  const level: '추천' | '보통' | '비추천' =
+    best.minScore === 2 ? '추천' : best.minScore === 1 ? '보통' : '비추천';
+  return { start: best.start, end: best.end, level };
+}
+
+function buildReason(
+  level: '추천' | '보통' | '비추천',
+  avgTemp: number,
+  avgWind: number,
+  topPrecip: string,
+  topSky: string,
+  minTemp: number,
+  maxTemp: number,
+): string {
+  if (level === '추천') {
+    if (avgTemp >= 15 && avgTemp <= 22) {
+      return `라이딩 최적 기온 (${avgTemp}°C), 강수 없고 바람도 약해 최상의 컨디션이에요.`;
+    }
+    return `강수 없고 바람도 약해 라이딩하기 좋아요. 기온 ${minTemp}~${maxTemp}°C 대비해 주세요.`;
+  }
+  if (level === '보통') {
+    if (topPrecip !== '없음') {
+      return `${topPrecip} 가능성 있어요. 방수 재킷 챙기면 라이딩 가능한 날씨예요.`;
+    }
+    if (avgWind >= 5) {
+      return `바람이 ${avgWind}m/s로 다소 강해요. 맞바람 구간에서 페이스 조절이 필요해요.`;
+    }
+    if (avgTemp < 10) {
+      return `기온이 낮아요 (${avgTemp}°C). 동계 레이어링 필수, 짧은 구간을 추천해요.`;
+    }
+    if (avgTemp > 25) {
+      return `기온이 높아요 (${avgTemp}°C). 이른 아침 라이딩과 수분 보충에 신경 써주세요.`;
+    }
+    return `${topSky} 날씨에 기온 ${avgTemp}°C로 짧은 라이딩은 괜찮아요.`;
+  }
+  // 비추천
+  if (topPrecip !== '없음' && avgWind >= 10) {
+    return `${topPrecip}에 강풍 (${avgWind}m/s)까지 예보됐어요. 오늘은 실내 훈련을 추천해요.`;
+  }
+  if (topPrecip !== '없음') {
+    return `${topPrecip}가 예보됐어요. 미끄러운 노면 위험으로 라이딩을 삼가는 게 좋아요.`;
+  }
+  if (avgWind >= 10) {
+    return `강풍 (${avgWind}m/s)이 예보됐어요. 낙차 위험이 있어 오늘은 쉬는 날로 하세요.`;
+  }
+  if (minTemp < 0) {
+    return `영하 날씨 (최저 ${minTemp}°C)로 노면 결빙 위험이 있어요. 라이딩을 미뤄주세요.`;
+  }
+  return `오늘 날씨는 라이딩에 적합하지 않아요. 내일 날씨를 확인해 보세요.`;
+}
+
+function analyzeRiding(hours: KmaHourlyWeather[]): RidingRecommendation {
+  const daytime = hours.filter((h) => {
+    const hh = parseInt(h.time.slice(0, 2));
+    return hh >= 6 && hh <= 20;
+  });
+  const sample = daytime.length > 0 ? daytime : hours;
+
+  // 대표 날씨: 가장 많이 등장하는 값
+  const freq = <T extends string>(arr: T[]): T =>
+    arr.sort((a, b) => arr.filter((v) => v === b).length - arr.filter((v) => v === a).length)[0];
+  const topPrecip = freq(sample.map((h) => h.precipLabel));
+  const topSky = freq(sample.map((h) => h.skyLabel));
+  const weatherSummary = topPrecip !== '없음' ? topPrecip : topSky;
+
+  const avgTemp = Math.round(sample.reduce((s, h) => s + h.temperature, 0) / sample.length);
+  const minTemp = Math.min(...sample.map((h) => h.temperature));
+  const maxTemp = Math.max(...sample.map((h) => h.temperature));
+  const avgWind = Math.round((sample.reduce((s, h) => s + h.windSpeed, 0) / sample.length) * 10) / 10;
+  const topWindLabel = avgWind < 3 ? '약풍' : avgWind < 8 ? '보통' : avgWind < 14 ? '강풍' : '매우강풍';
+
+  const window = findBestWindow(hours);
+  const slot = window ? `${window.start}~${window.end}` : '없음';
+  const level = window ? window.level : '비추천';
+
+  return {
+    weather: weatherSummary,
+    temperature: `${avgTemp}°C`,
+    wind: `${topWindLabel} (${avgWind}m/s)`,
+    recommendedTimeSlot: slot,
+    recommendation: level,
+    reason: buildReason(level, avgTemp, avgWind, topPrecip, topSky, minTemp, maxTemp),
   };
-
-  let res: Response;
-  try {
-    res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-  } catch (e) {
-    throw new Error(`GEMINI_ERROR: 네트워크 오류 — ${String(e)}`);
-  }
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`GEMINI_ERROR: HTTP ${res.status} — ${detail}`);
-  }
-
-  const data = await res.json();
-  const text: string | undefined = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('GEMINI_ERROR: 빈 응답');
-
-  return JSON.parse(text) as RidingRecommendation;
 }
 
 // ─── Entry point ──────────────────────────────────────────────────────────────
@@ -299,9 +356,8 @@ Deno.serve(async (req) => {
 
   try {
     const kmaKey = Deno.env.get('KMA_API_KEY');
-    const geminiKey = Deno.env.get('GEMINI_API_KEY');
-    if (!kmaKey || !geminiKey) {
-      return errRes('CONFIG_ERROR', '환경 변수 누락: KMA_API_KEY 또는 GEMINI_API_KEY', 500);
+    if (!kmaKey) {
+      return errRes('CONFIG_ERROR', '환경 변수 누락: KMA_API_KEY', 500);
     }
 
     let lat = DEFAULT_LAT;
@@ -324,7 +380,7 @@ Deno.serve(async (req) => {
       return errRes('KMA_EMPTY_RESPONSE', '오늘 예보 데이터가 없습니다', 502);
     }
 
-    const recommendation = await processWithGemini(hourlyData, geminiKey);
+    const recommendation = analyzeRiding(hourlyData);
 
     return new Response(JSON.stringify(recommendation), {
       headers: { ...CORS, 'Content-Type': 'application/json' },
@@ -334,11 +390,7 @@ Deno.serve(async (req) => {
       const status = err.code === 'KMA_TIMEOUT' ? 504 : 502;
       return errRes(err.code, err.message, status);
     }
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.startsWith('GEMINI_ERROR')) {
-      return errRes('GEMINI_ERROR', msg.replace('GEMINI_ERROR: ', ''), 502);
-    }
-    return errRes('INTERNAL_ERROR', msg, 500);
+    return errRes('INTERNAL_ERROR', err instanceof Error ? err.message : String(err), 500);
   }
 });
 
