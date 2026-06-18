@@ -41,11 +41,19 @@ class _ScheduleDetailView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final weather = ref.watch(
-      weatherDaysProvider.select(
-        (days) => days.where((d) => _isSameDay(d.date, schedule.date)).firstOrNull,
-      ),
-    );
+    final isToday = _isSameDay(schedule.date, DateTime.now());
+
+    // 오늘 일정은 API 실제 데이터, 그 외는 mock 데이터 사용
+    final todayRec = isToday
+        ? ref.watch(weatherRecommendationProvider).asData?.value
+        : null;
+    final mockWeather = isToday
+        ? null
+        : ref.watch(
+            weatherDaysProvider.select(
+              (days) => days.where((d) => _isSameDay(d.date, schedule.date)).firstOrNull,
+            ),
+          );
 
     final isGroup = schedule.type == ScheduleType.group;
     final isCompleted = schedule.status == ScheduleStatus.completed;
@@ -129,14 +137,41 @@ class _ScheduleDetailView extends ConsumerWidget {
                     label: '출발 시간',
                     value: schedule.time,
                   ),
-                  if (weather != null) ...[
+                  if (todayRec != null) ...[
                     const Divider(height: 24),
                     _InfoRow(
                       icon: Icons.thermostat_outlined,
                       label: '라이딩 점수',
                       value:
-                          '${weather.score}점 · ${weather.temperature}℃ · 강수 ${weather.precipitationChance}% · 풍속 ${weather.windSpeed}m/s',
-                      valueColor: ScoreColors.forScore(weather.score),
+                          '${todayRec.score}점 · ${todayRec.temperature} · ${todayRec.recommendation.label}',
+                      valueColor: ScoreColors.forScore(todayRec.score),
+                    ),
+                    const Divider(height: 24),
+                    _InfoRow(
+                      icon: Icons.air_outlined,
+                      label: '날씨 정보',
+                      value: '${todayRec.weather} · ${todayRec.wind}',
+                    ),
+                    const Divider(height: 24),
+                    _InfoRow(
+                      icon: Icons.schedule_outlined,
+                      label: '추천 시간',
+                      value: todayRec.recommendedTimeSlot,
+                    ),
+                    const Divider(height: 24),
+                    _InfoRow(
+                      icon: Icons.info_outline,
+                      label: '한줄 요약',
+                      value: todayRec.reason,
+                    ),
+                  ] else if (mockWeather != null) ...[
+                    const Divider(height: 24),
+                    _InfoRow(
+                      icon: Icons.thermostat_outlined,
+                      label: '라이딩 점수',
+                      value:
+                          '${mockWeather.score}점 · ${mockWeather.temperature}℃ · 강수 ${mockWeather.precipitationChance}% · 풍속 ${mockWeather.windSpeed}m/s',
+                      valueColor: ScoreColors.forScore(mockWeather.score),
                     ),
                   ],
                 ],
@@ -170,13 +205,14 @@ class _ScheduleDetailView extends ConsumerWidget {
                 title: schedule.courseName,
                 subtitle: '${_dateLabel(schedule.date)} · ${schedule.time}',
                 link: 'https://peak.app/invite/${schedule.id}',
-                weatherScore: weather?.score,
+                weatherScore: todayRec?.score ?? mockWeather?.score,
               ),
             ),
             icon: const Icon(Icons.ios_share_outlined),
             label: const Text('초대하기'),
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           ),
+
         ],
       ),
     );

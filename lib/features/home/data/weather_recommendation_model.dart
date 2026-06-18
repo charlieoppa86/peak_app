@@ -1,5 +1,4 @@
 /// Edge Function `weather-forecast`의 응답과 1:1 대응.
-/// 필드 추가/수정 시 Gemini responseSchema도 함께 갱신할 것.
 class RidingRecommendation {
   const RidingRecommendation({
     required this.weather,
@@ -16,6 +15,19 @@ class RidingRecommendation {
   final String recommendedTimeSlot;
   final RecommendationLevel recommendation;
   final String reason;
+
+  /// 추천 레벨로부터 파생된 대표 점수 (캘린더 색상 기준과 동일하게 매핑).
+  int get score => switch (recommendation) {
+        RecommendationLevel.good => 85,
+        RecommendationLevel.normal => 60,
+        RecommendationLevel.bad => 25,
+      };
+
+  /// "22°C" 형태의 문자열에서 정수 파싱.
+  int get temperatureInt {
+    final digits = temperature.replaceAll(RegExp(r'[^0-9\-]'), '');
+    return int.tryParse(digits) ?? 0;
+  }
 
   factory RidingRecommendation.fromJson(Map<String, dynamic> json) {
     return RidingRecommendation(
