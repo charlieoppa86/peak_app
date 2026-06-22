@@ -21,15 +21,20 @@ String get _bannerAdUnitId {
   return '';
 }
 
-/// iOS ATT 권한 요청. 스플래시에서 호출.
-/// 미결정 상태일 때만 다이얼로그를 표시하고, 허용 여부와 무관하게 반환.
-Future<void> requestAttIfNeeded() async {
-  if (kIsWeb || !Platform.isIOS) return;
-  final status = await AppTrackingTransparency.trackingAuthorizationStatus;
-  if (status == TrackingStatus.notDetermined) {
-    await Future.delayed(const Duration(milliseconds: 200));
-    await AppTrackingTransparency.requestTrackingAuthorization();
+/// iOS ATT 권한 요청 후 AdMob 초기화. 스플래시에서 await 호출.
+/// ATT 응답(허용/거부 무관)을 받은 뒤 MobileAds를 초기화하므로
+/// 추적 데이터 수집이 항상 ATT 이후에 시작된다.
+Future<void> requestAttThenInitAds() async {
+  if (kIsWeb) return;
+  if (Platform.isIOS) {
+    final status = await AppTrackingTransparency.trackingAuthorizationStatus;
+    if (status == TrackingStatus.notDetermined) {
+      // 스플래시 화면이 완전히 표시된 뒤 다이얼로그가 뜨도록 짧게 대기
+      await Future.delayed(const Duration(milliseconds: 300));
+      await AppTrackingTransparency.requestTrackingAuthorization();
+    }
   }
+  await MobileAds.instance.initialize();
 }
 
 /// 홈 화면 하단에 삽입하는 AdMob 배너 위젯.

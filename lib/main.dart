@@ -1,9 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
@@ -24,7 +22,8 @@ void main() async {
       publishableKey: AppConfig.supabasePublishableKey,
     ),
   ]);
-  if (!kIsWeb) await MobileAds.instance.initialize();
+  // AdMob 초기화는 ATT 권한 요청 이후에 스플래시에서 수행한다.
+  // 여기서 먼저 초기화하면 ATT 응답 전에 추적 데이터가 수집되어 Apple 정책 위반.
 
   // 백그라운드 핸들러는 runApp() 이전, Firebase 초기화 직후에 등록해야 한다.
   PushNotificationService.registerBackgroundHandler();

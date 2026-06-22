@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/services/admob_service.dart' show requestAttIfNeeded;
+import '../../../core/services/admob_service.dart' show requestAttThenInitAds;
 import '../data/splash_service.dart';
 
 /// 스플래시 — 앱 진입 직후 버전 체크·네트워크 체크·데이터 프리패치를 병렬 처리.
@@ -25,7 +25,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
     _ctrl.forward();
-    _runStartup();
+    // 첫 프레임이 렌더링된 뒤 실행해야 ATT 다이얼로그가 화면 위에 올바르게 표시됨
+    WidgetsBinding.instance.addPostFrameCallback((_) => _runStartup());
   }
 
   @override
@@ -38,11 +39,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _runStartup() async {
     while (true) {
-      // ATT 권한 요청(iOS 전용)·네트워크·버전·프리패치를 병렬로 시작
+      // ATT 다이얼로그가 완전히 닫힌 뒤 AdMob이 초기화되도록 먼저 await
+      await requestAttThenInitAds();
+      if (!mounted) return;
+
       final networkFuture = SplashService.checkNetwork();
       final versionFuture = SplashService.checkVersion();
       final prefetchFuture = _safePrefetch();
-      requestAttIfNeeded(); // 결과 대기 불필요, fire-and-forget
 
       final hasNetwork = await networkFuture;
       if (!mounted) return;
