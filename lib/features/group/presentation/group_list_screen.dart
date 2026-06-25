@@ -1,20 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../features/home/data/home_mock_data.dart';
 import '../../../shared/widgets/notification_bell_button.dart';
 import '../data/group_mock_data.dart';
 
 const _weekdayLabels = ['월', '화', '수', '목', '금', '토', '일'];
 
 /// 그룹 — 내가 만든 그룹 일정 / 초대받은 일정 구분 리스트 (docs/ia.md 그룹 IA).
-class GroupListScreen extends StatelessWidget {
+/// '내가 만든 일정'은 schedulesProvider에서 type==group인 항목을 실시간으로 반영한다.
+class GroupListScreen extends ConsumerWidget {
   const GroupListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final mine = mockGroupSchedules.where((g) => g.isMine).toList()..sort((a, b) => a.date.compareTo(b.date));
-    final invited = mockGroupSchedules.where((g) => !g.isMine).toList()..sort((a, b) => a.date.compareTo(b.date));
+  Widget build(BuildContext context, WidgetRef ref) {
+    // schedulesProvider에서 그룹 타입 일정만 필터링 — 등록/삭제 즉시 반영
+    final mine = ref
+        .watch(schedulesProvider)
+        .where((s) => s.type == ScheduleType.group)
+        .toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
+
+    // 초대받은 일정은 추후 서버 연동 (현재 항상 빈 리스트)
+    final invited = mockGroupSchedules.where((g) => !g.isMine).toList()
+      ..sort((a, b) => a.date.compareTo(b.date));
 
     return Scaffold(
       appBar: AppBar(title: const Text('그룹'), actions: const [NotificationBellButton()]),
@@ -26,7 +38,7 @@ class GroupListScreen extends StatelessWidget {
           if (mine.isEmpty)
             const _EmptyHint(text: '아직 만든 그룹 일정이 없어요.')
           else
-            ...mine.map((g) => _GroupTile(group: g)),
+            ...mine.map((s) => _MyGroupTile(schedule: s)),
           const SizedBox(height: 28),
           _SectionHeader(title: '초대받은 일정', count: invited.length),
           const SizedBox(height: 8),
@@ -79,6 +91,36 @@ class _EmptyHint extends StatelessWidget {
         text,
         textAlign: TextAlign.center,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+      ),
+    );
+  }
+}
+
+/// schedulesProvider에서 파생된 그룹 타입 RidingSchedule 표시용 타일.
+/// 탭 시 일정 상세(/home/schedule/:id)로 이동 — 초대·RSVP 기능 포함.
+class _MyGroupTile extends StatelessWidget {
+  const _MyGroupTile({required this.schedule});
+
+  final RidingSchedule schedule;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        contentPadding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        onTap: () => context.push('/home/schedule/${schedule.id}'),
+        title: Text(schedule.courseName, style: Theme.of(context).textTheme.titleSmall),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: Text(
+            '${_dateLabel(schedule.date)} · ${schedule.time}',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+        ),
+        trailing: const Icon(Icons.chevron_right),
       ),
     );
   }
