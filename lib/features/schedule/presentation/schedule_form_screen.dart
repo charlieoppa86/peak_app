@@ -127,25 +127,6 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
         children: [
-          const _FieldLabel('함께하는 방식'),
-          const SizedBox(height: 8),
-          SegmentedButton<ScheduleType>(
-            segments: const [
-              ButtonSegment(
-                value: ScheduleType.solo,
-                label: Text('혼자 달리기'),
-                icon: Icon(Icons.directions_bike_outlined),
-              ),
-              ButtonSegment(
-                value: ScheduleType.group,
-                label: Text('같이 달리기'),
-                icon: Icon(Icons.groups_outlined),
-              ),
-            ],
-            selected: {_type},
-            onSelectionChanged: (s) => setState(() => _type = s.first),
-          ),
-          const SizedBox(height: 24),
           const _FieldLabel('날짜'),
           const SizedBox(height: 8),
           _PickerTile(
@@ -192,6 +173,25 @@ class _ScheduleFormScreenState extends ConsumerState<ScheduleFormScreen> {
                   onPressed: () => setState(() => _courseController.text = course),
                 ),
             ],
+          ),
+          const SizedBox(height: 24),
+          const _FieldLabel('함께하는 방식'),
+          const SizedBox(height: 8),
+          SegmentedButton<ScheduleType>(
+            segments: const [
+              ButtonSegment(
+                value: ScheduleType.solo,
+                label: Text('혼자 달리기'),
+                icon: Icon(Icons.directions_bike_outlined),
+              ),
+              ButtonSegment(
+                value: ScheduleType.group,
+                label: Text('같이 달리기'),
+                icon: Icon(Icons.groups_outlined),
+              ),
+            ],
+            selected: {_type},
+            onSelectionChanged: (s) => setState(() => _type = s.first),
           ),
           const SizedBox(height: 32),
           FilledButton(

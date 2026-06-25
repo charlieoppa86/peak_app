@@ -116,11 +116,6 @@ class _TwoWeekCalendar extends ConsumerWidget {
               ],
             ],
           ),
-          _InlineDateDetailSlot(
-            key: ValueKey('slot_$row'),
-            rowStart: row * _cols,
-            rowEnd: (row + 1) * _cols,
-          ),
         ],
       ],
     );
@@ -128,9 +123,8 @@ class _TwoWeekCalendar extends ConsumerWidget {
 }
 
 /// 셀별 독립 구독:
-/// - selectedDayIndexProvider.select(idx == dayIndex) → 이 셀의 선택 여부
 /// - schedulesProvider.select(첫 일정 타입) → 이 날의 일정 dot
-/// 다른 날짜 탭 시 이전 셀과 새 셀만 2개 리빌드.
+/// 탭 시 Bottom Sheet로 날씨 상세 표시.
 class _CalendarDayCell extends ConsumerWidget {
   const _CalendarDayCell({
     super.key,
@@ -141,12 +135,15 @@ class _CalendarDayCell extends ConsumerWidget {
   final int dayIndex;
   final WeatherDay day;
 
+  IconData get _weatherIcon {
+    if (day.precipitationChance >= 60) return Icons.umbrella_outlined;
+    if (day.precipitationChance >= 30) return Icons.cloud_outlined;
+    if (day.score >= 70) return Icons.wb_sunny_outlined;
+    return Icons.cloud_queue_outlined;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isSelected = ref.watch(
-      selectedDayIndexProvider.select((idx) => idx == dayIndex),
-    );
-    // null=일정 없음, ScheduleType = dot 색상 결정
     final scheduleType = ref.watch(
       schedulesProvider.select(
         (list) => list
@@ -160,20 +157,19 @@ class _CalendarDayCell extends ConsumerWidget {
     final isToday = _isSameDay(day.date, DateTime.now());
 
     return GestureDetector(
-      onTap: () => ref.read(selectedDayIndexProvider.notifier).toggle(dayIndex),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
+      onTap: () => showModalBottomSheet<void>(
+        context: context,
+        showDragHandle: true,
+        useSafeArea: true,
+        isScrollControlled: true,
+        builder: (_) => _DayDetailSheet(day: day),
+      ),
+      child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: isSelected
-              ? color.withValues(alpha: 0.28)
-              : color.withValues(alpha: 0.16),
+          color: color.withValues(alpha: 0.16),
           borderRadius: BorderRadius.circular(14),
-          border: isSelected
-              ? Border.all(color: color, width: 2)
-              : isToday
-                  ? Border.all(color: color, width: 1.5)
-                  : null,
+          border: isToday ? Border.all(color: color, width: 1.5) : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -186,21 +182,7 @@ class _CalendarDayCell extends ConsumerWidget {
                   ),
             ),
             Text('${day.date.day}', style: Theme.of(context).textTheme.titleSmall),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                '${day.score}',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: Colors.black.withValues(alpha: 0.75),
-                      fontWeight: FontWeight.w700,
-                      fontSize: 10,
-                    ),
-              ),
-            ),
+            Icon(_weatherIcon, size: 16, color: color),
             SizedBox(
               height: 6,
               width: 6,
@@ -222,37 +204,16 @@ class _CalendarDayCell extends ConsumerWidget {
   }
 }
 
-/// 이 행에 속한 날짜가 선택됐을 때만 패널을 펼친다.
-/// select로 "이 행에 선택 있음" 여부만 구독 → 다른 행 탭 시 이 슬롯은 리빌드 안 됨.
-class _InlineDateDetailSlot extends ConsumerWidget {
-  const _InlineDateDetailSlot({
-    super.key,
-    required this.rowStart,
-    required this.rowEnd,
-  });
-
-  final int rowStart;
-  final int rowEnd;
+/// 달력 셀 탭 시 나타나는 Bottom Sheet — 날씨 상세 및 일정 CTA 포함.
+class _DayDetailSheet extends StatelessWidget {
+  const _DayDetailSheet({required this.day});
+  final WeatherDay day;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final inThisRow = ref.watch(
-      selectedDayIndexProvider.select(
-        (idx) => idx != null && idx >= rowStart && idx < rowEnd,
-      ),
-    );
-    final day = inThisRow ? ref.watch(selectedWeatherDayProvider) : null;
-
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 230),
-      curve: Curves.easeOut,
-      alignment: Alignment.topCenter,
-      child: inThisRow && day != null
-          ? Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: _DateDetailPanel(day: day),
-            )
-          : const SizedBox.shrink(),
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+      child: _DateDetailPanel(day: day),
     );
   }
 }
