@@ -222,14 +222,16 @@ async function fetchMidLandFcst(opts: {
 
 // ─── Base time helpers ────────────────────────────────────────────────────────
 
-function getBaseDateTime(now: Date): { baseDate: string; baseTime: string } {
+function getBaseDateTime(now: Date, slotOffset = 0): { baseDate: string; baseTime: string } {
   const kstMs = now.getTime() + 9 * 60 * 60 * 1000;
   const kst = new Date(kstMs);
   const kstMinutes = kst.getUTCHours() * 60 + kst.getUTCMinutes();
   const slots = [120, 300, 480, 660, 840, 1020, 1200, 1380];
-  const valid = slots.filter((m) => m <= kstMinutes - 30);
-  if (valid.length > 0) {
-    const t = valid[valid.length - 1];
+  // 60분 버퍼: KMA 데이터가 발표 후 올라오는 데 걸리는 시간 고려
+  const valid = slots.filter((m) => m <= kstMinutes - 60);
+  const idx = valid.length - 1 - slotOffset;
+  if (idx >= 0) {
+    const t = valid[idx];
     const h = String(Math.floor(t / 60)).padStart(2, '0');
     const m = String(t % 60).padStart(2, '0');
     return {
@@ -237,6 +239,7 @@ function getBaseDateTime(now: Date): { baseDate: string; baseTime: string } {
       baseTime: `${h}${m}`,
     };
   }
+  // 오늘 유효 슬롯이 없거나 offset이 넘치면 전날 23:00으로 fallback
   const prevDay = new Date(kstMs - 24 * 60 * 60 * 1000);
   return {
     baseDate: prevDay.toISOString().slice(0, 10).replace(/-/g, ''),
@@ -553,13 +556,15 @@ Deno.serve(async (req) => {
 
     const { nx, ny } = latLngToGrid(lat, lng);
     const now = new Date();
-    const { baseDate, baseTime } = getBaseDateTime(now);
+    const today = todayKst(now);
 
-    // 1. 단기예보 조회 (D+0 ~ D+2)
-    const rawItems = await fetchKmaForecast({ serviceKey: kmaKey, nx, ny, baseDate, baseTime });
+    // 1. 단기예보 조회 (D+0 ~ D+2) — 빈 응답이면 한 슬롯 이전으로 재시도
+    let rawItems = await fetchKmaForecast({ serviceKey: kmaKey, nx, ny, ...getBaseDateTime(now) });
+    if (mapDayHourly(rawItems, today).length === 0) {
+      rawItems = await fetchKmaForecast({ serviceKey: kmaKey, nx, ny, ...getBaseDateTime(now, 1) });
+    }
 
     // 2. 오늘 분석 (홈 카드용)
-    const today = todayKst(now);
     const todayHourly = mapDayHourly(rawItems, today);
     if (todayHourly.length === 0)
       return errRes('KMA_EMPTY_RESPONSE', '오늘 예보 데이터가 없습니다', 502);
