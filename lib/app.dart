@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,16 +21,38 @@ class PeakApp extends ConsumerStatefulWidget {
 class _PeakAppState extends ConsumerState<PeakApp> {
   final _scaffoldKey = GlobalKey<ScaffoldMessengerState>();
   StreamSubscription<RemoteMessage>? _foregroundSub;
+  StreamSubscription<Uri>? _deepLinkSub;
 
   @override
   void initState() {
     super.initState();
     _foregroundSub = PushNotificationService.foregroundMessages.listen(_onForeground);
+    _initDeepLinks();
+  }
+
+  Future<void> _initDeepLinks() async {
+    final appLinks = AppLinks();
+
+    // 앱이 꺼져 있다가 딥링크로 시작된 경우
+    final initialLink = await appLinks.getInitialLink();
+    if (initialLink != null) _handleDeepLink(initialLink);
+
+    // 앱이 실행 중일 때 딥링크가 들어오는 경우
+    _deepLinkSub = appLinks.uriLinkStream.listen(_handleDeepLink);
+  }
+
+  void _handleDeepLink(Uri uri) {
+    // peak://home/schedule/:id/rsvp → host="home", path="/schedule/:id/rsvp"
+    // go_router 경로에 맞게 host + path 결합
+    final routePath = uri.host.isNotEmpty ? '/${uri.host}${uri.path}' : uri.path;
+    final query = uri.query.isNotEmpty ? '?${uri.query}' : '';
+    appRouter.push('$routePath$query');
   }
 
   @override
   void dispose() {
     _foregroundSub?.cancel();
+    _deepLinkSub?.cancel();
     super.dispose();
   }
 

@@ -10,6 +10,7 @@ import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/onboarding/presentation/onboarding_screen.dart';
 import '../../features/schedule/presentation/schedule_detail_screen.dart';
 import '../../features/schedule/presentation/schedule_form_screen.dart';
+import '../../features/schedule/presentation/schedule_rsvp_screen.dart';
 import '../../features/settings/presentation/alert_settings_screen.dart';
 import '../../features/settings/presentation/location_settings_screen.dart';
 import '../../features/settings/presentation/plan_settings_screen.dart';
@@ -20,8 +21,19 @@ import '../../shared/widgets/app_shell.dart';
 
 /// docs/ia.md "Flutter 라우팅 참고" 구조와 1:1 대응.
 /// 일정은 홈 브랜치에 통합, 알림은 바텀 탭이 아닌 전역 push 라우트로 분리.
+/// peak://home/schedule/:id/rsvp 커스텀 URL 스킴으로 들어오는 딥링크를 처리한다.
 final appRouter = GoRouter(
   initialLocation: '/splash',
+  redirect: (context, state) {
+    // peak://home/schedule/:id/rsvp → /home/schedule/:id/rsvp
+    final uri = state.uri;
+    if (uri.scheme == 'peak') {
+      final path = uri.host.isNotEmpty ? '/${uri.host}${uri.path}' : uri.path;
+      final query = uri.query.isNotEmpty ? '?${uri.query}' : '';
+      return '$path$query';
+    }
+    return null;
+  },
   routes: [
     GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
     GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
@@ -52,6 +64,15 @@ final appRouter = GoRouter(
                     GoRoute(
                       path: 'edit',
                       builder: (context, state) => ScheduleFormScreen(scheduleId: state.pathParameters['id']),
+                    ),
+                    GoRoute(
+                      path: 'rsvp',
+                      builder: (context, state) => ScheduleRsvpScreen(
+                        scheduleId: state.pathParameters['id']!,
+                        course: state.uri.queryParameters['course'] ?? '',
+                        date: state.uri.queryParameters['date'] ?? '',
+                        time: state.uri.queryParameters['time'] ?? '',
+                      ),
                     ),
                   ],
                 ),

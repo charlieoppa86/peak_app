@@ -12,7 +12,7 @@ const _androidBannerId = String.fromEnvironment(
 );
 const _iosBannerId = String.fromEnvironment(
   'ADMOB_BANNER_ID_IOS',
-  defaultValue: 'ca-app-pub-3940256099942544/2934735716',
+  defaultValue: 'ca-app-pub-8560405440054672/6964347258',
 );
 
 String get _bannerAdUnitId {

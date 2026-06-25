@@ -73,6 +73,24 @@ class RidingSchedule {
       status: status ?? this.status,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'date': date.toIso8601String(),
+        'time': time,
+        'courseName': courseName,
+        'type': type.name,
+        'status': status.name,
+      };
+
+  factory RidingSchedule.fromJson(Map<String, dynamic> json) => RidingSchedule(
+        id: json['id'] as String,
+        date: DateTime.parse(json['date'] as String),
+        time: json['time'] as String,
+        courseName: json['courseName'] as String,
+        type: ScheduleType.values.byName(json['type'] as String),
+        status: ScheduleStatus.values.byName(json['status'] as String),
+      );
 }
 
 class GroupReservation {
@@ -117,41 +135,8 @@ final List<WeatherDay> mockWeatherDays = List.generate(_scores.length, (i) {
   );
 });
 
-/// 내가 등록한 라이딩 일정.
-final List<RidingSchedule> mockSchedules = [
-  RidingSchedule(
-    id: 's1',
-    date: _d(0),
-    time: '오전 7:00',
-    courseName: '한강 자유로 코스',
-    type: ScheduleType.solo,
-    status: ScheduleStatus.upcoming,
-  ),
-  RidingSchedule(
-    id: 's2',
-    date: _d(2),
-    time: '오전 6:30',
-    courseName: '남산 순환 코스',
-    type: ScheduleType.group,
-    status: ScheduleStatus.upcoming,
-  ),
-  RidingSchedule(
-    id: 's3',
-    date: _d(-2),
-    time: '오전 7:30',
-    courseName: '북악 스카이웨이',
-    type: ScheduleType.solo,
-    status: ScheduleStatus.completed,
-  ),
-  RidingSchedule(
-    id: 's4',
-    date: _d(5),
-    time: '오후 2:00',
-    courseName: '한강 잠실 코스',
-    type: ScheduleType.group,
-    status: ScheduleStatus.upcoming,
-  ),
-];
+/// 내가 등록한 라이딩 일정 (초기값 비어있음 — 실제 사용자 데이터로만 채워짐).
+final List<RidingSchedule> mockSchedules = [];
 
 /// 최근 등록 시 자주 쓴 코스명 — 일정 등록 화면 즐겨찾기 드롭다운 (US-004 AC3, 최대 5개).
 const mockFavoriteCourses = <String>[
@@ -162,8 +147,5 @@ const mockFavoriteCourses = <String>[
   '양재천 라이딩',
 ];
 
-/// 그룹 라이딩 참석 현황.
-final List<GroupReservation> mockGroupReservations = [
-  GroupReservation(title: '남산 순환 코스 같이 달리기', date: _d(2), confirmedCount: 4, invitedCount: 6),
-  GroupReservation(title: '한강 잠실 코스 주말 라이딩', date: _d(5), confirmedCount: 2, invitedCount: 8),
-];
+/// 그룹 라이딩 참석 현황 (초기값 비어있음 — 실제 사용자 데이터로만 채워짐).
+final List<GroupReservation> mockGroupReservations = [];

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
@@ -204,7 +205,7 @@ class _ScheduleDetailView extends ConsumerWidget {
               builder: (context) => InviteShareSheet(
                 title: schedule.courseName,
                 subtitle: '${_dateLabel(schedule.date)} · ${schedule.time}',
-                link: 'https://peak.app/invite/${schedule.id}',
+                link: _buildInviteLink(schedule),
                 weatherScore: todayRec?.score ?? mockWeather?.score,
               ),
             ),
@@ -212,10 +213,20 @@ class _ScheduleDetailView extends ConsumerWidget {
             label: const Text('초대하기'),
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           ),
-
+          const SizedBox(height: 28),
+          _RsvpList(scheduleId: schedule.id),
         ],
       ),
     );
+  }
+
+  String _buildInviteLink(RidingSchedule schedule) {
+    const base = 'https://aulhqkkumomdbryxyskr.supabase.co/functions/v1/invite';
+    final id = schedule.id;
+    final course = Uri.encodeComponent(schedule.courseName);
+    final date = Uri.encodeComponent(_dateLabel(schedule.date));
+    final time = Uri.encodeComponent(schedule.time);
+    return '$base/$id?course=$course&date=$date&time=$time';
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
@@ -243,6 +254,103 @@ class _ScheduleDetailView extends ConsumerWidget {
       );
       context.go('/home');
     }
+  }
+}
+
+// ─── RSVP 참석자 목록 ────────────────────────────────────────────────────────
+
+class _RsvpList extends StatefulWidget {
+  const _RsvpList({required this.scheduleId});
+  final String scheduleId;
+
+  @override
+  State<_RsvpList> createState() => _RsvpListState();
+}
+
+class _RsvpListState extends State<_RsvpList> {
+  List<Map<String, dynamic>> _rsvps = [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final data = await Supabase.instance.client
+          .from('schedule_rsvps')
+          .select('name, status, created_at')
+          .eq('riding_schedule_id', widget.scheduleId)
+          .order('created_at');
+      if (mounted) setState(() { _rsvps = List<Map<String, dynamic>>.from(data); _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('참석 응답', style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(width: 8),
+            if (!_loading)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(20)),
+                child: Text('${_rsvps.length}명', style: text.labelSmall),
+              ),
+            const Spacer(),
+            IconButton(onPressed: _load, icon: const Icon(Icons.refresh_outlined, size: 18), visualDensity: VisualDensity.compact),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (_loading)
+          const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator(strokeWidth: 2)))
+        else if (_rsvps.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(color: colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+            child: Text('아직 참석 응답이 없어요.', style: text.bodySmall?.copyWith(color: colors.onSurfaceVariant), textAlign: TextAlign.center),
+          )
+        else
+          Container(
+            decoration: BoxDecoration(color: colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
+            child: Column(
+              children: _rsvps.asMap().entries.map((e) {
+                final i = e.key;
+                final r = e.value;
+                final status = r['status'] as String;
+                final (icon, color, label) = switch (status) {
+                  'attending' => (Icons.check_circle_outline, Colors.green, '참석'),
+                  'maybe'     => (Icons.help_outline, Colors.orange, '미정'),
+                  _           => (Icons.cancel_outlined, Colors.red, '불참'),
+                };
+                return Column(
+                  children: [
+                    if (i > 0) Divider(height: 1, indent: 16, endIndent: 16, color: colors.outline.withValues(alpha: 0.3)),
+                    ListTile(
+                      dense: true,
+                      leading: Icon(icon, color: color, size: 20),
+                      title: Text(r['name'] as String, style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                      trailing: Text(label, style: text.bodySmall?.copyWith(color: color)),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+      ],
+    );
   }
 }
 

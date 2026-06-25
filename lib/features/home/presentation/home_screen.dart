@@ -445,7 +445,9 @@ class _ScheduleList extends ConsumerWidget {
 
     if (schedules.isEmpty) {
       return const _EmptyHint(
-        text: '등록된 일정이 없어요. 캘린더에서 날짜를 선택해 등록해보세요.',
+        icon: Icons.directions_bike_outlined,
+        text: '아직 등록된 일정이 없어요.',
+        sub: '캘린더에서 날짜를 선택해 일정을 추가해보세요.',
       );
     }
     return Column(
@@ -513,7 +515,11 @@ class _GroupReservationList extends ConsumerWidget {
     final reservations = ref.watch(groupReservationsProvider);
 
     if (reservations.isEmpty) {
-      return const _EmptyHint(text: '예정된 그룹 라이딩이 없어요.');
+      return const _EmptyHint(
+        icon: Icons.groups_outlined,
+        text: '참여 중인 그룹 라이딩이 없어요.',
+        sub: '같이 달리기로 일정을 만들거나 초대를 기다려보세요.',
+      );
     }
     return Column(
       children: [
@@ -603,25 +609,44 @@ class _SectionHeader extends StatelessWidget {
 }
 
 class _EmptyHint extends StatelessWidget {
-  const _EmptyHint({required this.text});
+  const _EmptyHint({required this.icon, required this.text, this.sub});
 
+  final IconData icon;
   final String text;
+  final String? sub;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+      child: Column(
+        children: [
+          Icon(icon, size: 32, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+          const SizedBox(height: 10),
+          Text(
+            text,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+          if (sub != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              sub!,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                  ),
             ),
+          ],
+        ],
       ),
     );
   }
@@ -701,17 +726,19 @@ class _RecommendationError extends ConsumerWidget {
   }
 }
 
-class _RecommendationContent extends StatelessWidget {
+class _RecommendationContent extends ConsumerWidget {
   const _RecommendationContent({required this.recommendation});
   final RidingRecommendation recommendation;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final (badgeColor, badgeText) = switch (recommendation.recommendation) {
       RecommendationLevel.good => (ScoreColors.good, '추천'),
       RecommendationLevel.normal => (ScoreColors.fair, '보통'),
       RecommendationLevel.bad => (ScoreColors.poor, '비추천'),
     };
+
+    final location = ref.watch(selectedLocationProvider);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -724,29 +751,74 @@ class _RecommendationContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                '오늘의 날씨',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleSmall
-                    ?.copyWith(fontWeight: FontWeight.w600),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '오늘의 날씨',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 13,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        '${location.city} ${location.district}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  badgeText,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: badgeColor,
-                        fontWeight: FontWeight.w700,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: badgeColor.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      badgeText,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: badgeColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.schedule_outlined,
+                          size: 13,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 3),
+                      Text(
+                        recommendation.recommendedTimeSlot,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500,
+                            ),
                       ),
-                ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
@@ -761,23 +833,6 @@ class _RecommendationContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Row(
-            children: [
-              Icon(Icons.schedule_outlined,
-                  size: 14,
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  '추천 시간: ${recommendation.recommendedTimeSlot}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
           Text(
             recommendation.reason,
             maxLines: 2,
@@ -808,10 +863,10 @@ class _InfoChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13,
+          Icon(icon, size: 14,
               color: Theme.of(context).colorScheme.onSurfaceVariant),
           const SizedBox(width: 4),
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
         ],
       ),
     );

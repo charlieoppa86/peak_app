@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/home/data/home_mock_data.dart';
@@ -21,10 +24,34 @@ final currentUserIdProvider = Provider<String?>(
 
 // ─── Schedules ───────────────────────────────────────────────────────────────
 
+const _kSchedulesKey = 'riding_schedules_v1';
+
 /// 사용자 라이딩 일정 전체. 변이(추가·수정·삭제·완료 토글)는 이 Notifier를 통해서만 일어난다.
+/// SharedPreferences에 JSON으로 영속화 — 앱 재시작 후에도 유지된다.
 class SchedulesNotifier extends Notifier<List<RidingSchedule>> {
   @override
-  List<RidingSchedule> build() => List.unmodifiable(mockSchedules);
+  List<RidingSchedule> build() {
+    // 동기 빌드 후 비동기로 저장된 데이터 로드
+    _loadFromPrefs();
+    return const [];
+  }
+
+  Future<void> _loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = prefs.getStringList(_kSchedulesKey) ?? [];
+    if (jsonList.isEmpty) return;
+    state = List.unmodifiable(
+      jsonList.map((s) => RidingSchedule.fromJson(jsonDecode(s) as Map<String, dynamic>)).toList(),
+    );
+  }
+
+  Future<void> _persist() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _kSchedulesKey,
+      state.map((s) => jsonEncode(s.toJson())).toList(),
+    );
+  }
 
   void toggleCompleted(String id) {
     state = List.unmodifiable([
@@ -38,20 +65,24 @@ class SchedulesNotifier extends Notifier<List<RidingSchedule>> {
         else
           s,
     ]);
+    _persist();
   }
 
   void add(RidingSchedule schedule) {
     state = List.unmodifiable([...state, schedule]);
+    _persist();
   }
 
   void update(RidingSchedule updated) {
     state = List.unmodifiable([
       for (final s in state) s.id == updated.id ? updated : s,
     ]);
+    _persist();
   }
 
   void delete(String id) {
     state = List.unmodifiable(state.where((s) => s.id != id).toList());
+    _persist();
   }
 }
 
@@ -121,8 +152,54 @@ final selectedDayIndexProvider = NotifierProvider<SelectedDayIndexNotifier, int?
   SelectedDayIndexNotifier.new,
 );
 
-/// 날씨 데이터 (현재는 mock. API 연동 시 AsyncNotifierProvider로 교체).
-final weatherDaysProvider = Provider<List<WeatherDay>>((ref) => mockWeatherDays);
+/// 2주 날씨 캘린더 데이터.
+/// API forecast 배열이 있으면 해당 날짜를 실제 데이터로 채우고,
+/// 커버되지 않는 날짜는 mock으로 fallback.
+final weatherDaysProvider = Provider<List<WeatherDay>>((ref) {
+  final recommendationAsync = ref.watch(weatherRecommendationProvider);
+
+  return recommendationAsync.maybeWhen(
+    data: (rec) {
+      if (rec.forecast.isEmpty) return mockWeatherDays;
+
+      final byDate = {for (final f in rec.forecast) f.date: f};
+      final today = DateTime.now();
+
+      return List.generate(14, (i) {
+        final date = DateTime(today.year, today.month, today.day).add(Duration(days: i));
+        final dateStr = '${date.year}'
+            '${date.month.toString().padLeft(2, '0')}'
+            '${date.day.toString().padLeft(2, '0')}';
+        final f = byDate[dateStr];
+
+        if (f != null) {
+          final mock = i < mockWeatherDays.length ? mockWeatherDays[i] : null;
+          return WeatherDay(
+            date: date,
+            score: f.score,
+            temperature: f.temperature,
+            precipitationChance: f.precipitationChance,
+            windSpeed: f.windSpeed.round(),
+            precipitation: mock?.precipitation ?? 0.0,
+            dustLevel: mock?.dustLevel ?? DustLevel.moderate,
+          );
+        }
+        return i < mockWeatherDays.length
+            ? mockWeatherDays[i]
+            : WeatherDay(
+                date: date,
+                score: 50,
+                temperature: 20,
+                precipitationChance: 20,
+                windSpeed: 3,
+                precipitation: 0.0,
+                dustLevel: DustLevel.moderate,
+              );
+      });
+    },
+    orElse: () => mockWeatherDays,
+  );
+});
 
 /// 현재 선택된 날의 WeatherDay. 선택이 없으면 null.
 final selectedWeatherDayProvider = Provider<WeatherDay?>((ref) {
@@ -137,6 +214,23 @@ final selectedWeatherDayProvider = Provider<WeatherDay?>((ref) {
 /// 홈의 그룹 라이딩 현황 요약. 현재는 home_mock_data의 GroupReservation 사용.
 final groupReservationsProvider = Provider<List<GroupReservation>>(
   (ref) => mockGroupReservations,
+);
+
+// ─── Location ────────────────────────────────────────────────────────────────
+
+typedef SelectedLocation = ({String city, String district});
+
+class LocationNotifier extends Notifier<SelectedLocation> {
+  @override
+  SelectedLocation build() => (city: '서울특별시', district: '마포구');
+
+  void update(String city, String district) =>
+      state = (city: city, district: district);
+}
+
+final selectedLocationProvider =
+    NotifierProvider<LocationNotifier, SelectedLocation>(
+  LocationNotifier.new,
 );
 
 // ─── Notifications ────────────────────────────────────────────────────────────

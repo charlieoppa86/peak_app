@@ -194,25 +194,37 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 로고 영역 (2/3)
-            Expanded(
-              flex: 2,
-              child: Center(
-                child: FadeTransition(
-                  opacity: _fade,
-                  child: const _LogoArea(),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Opacity(
+            opacity: 0.18,
+            child: Image.asset(
+              'assets/images/splash_bg.png',
+              fit: BoxFit.cover,
+            ),
+          ),
+          SafeArea(
+            child: Column(
+              children: [
+                // 로고 영역 (2/3)
+                Expanded(
+                  flex: 2,
+                  child: Center(
+                    child: FadeTransition(
+                      opacity: _fade,
+                      child: const _LogoArea(),
+                    ),
+                  ),
                 ),
-              ),
+                // 로딩 영역 (1/3)
+                Expanded(
+                  child: _LoadingArea(statusText: _statusText),
+                ),
+              ],
             ),
-            // 로딩 영역 (1/3)
-            Expanded(
-              child: _LoadingArea(statusText: _statusText),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -223,21 +235,9 @@ class _LogoArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 88,
-          height: 88,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            border: Border.all(color: primary.withValues(alpha: 0.35), width: 1.5),
-          ),
-          child: Icon(Icons.filter_hdr_rounded, size: 44, color: primary),
-        ),
-        const SizedBox(height: 20),
         Text(
           'Peak',
           style: Theme.of(context).textTheme.displaySmall?.copyWith(
