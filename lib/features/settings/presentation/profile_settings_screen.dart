@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/providers/app_providers.dart';
 
 const _weekdays = ['월', '화', '수', '목', '금', '토', '일'];
 
-/// 프로필 편집 — 이름/닉네임 수정 · 선호 운동 요일 변경.
-/// 입력값은 기기에 저장되어 이후 초대 발송 시 자동으로 채워진다 (US-002 AC3).
-class ProfileSettingsScreen extends StatefulWidget {
+class ProfileSettingsScreen extends ConsumerStatefulWidget {
   const ProfileSettingsScreen({super.key});
 
   @override
-  State<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
+  ConsumerState<ProfileSettingsScreen> createState() => _ProfileSettingsScreenState();
 }
 
-class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
-  final _nameController = TextEditingController(text: '동현');
+class _ProfileSettingsScreenState extends ConsumerState<ProfileSettingsScreen> {
+  late final TextEditingController _nameController;
   final Set<String> _preferredDays = {'화', '토', '일'};
+
+  @override
+  void initState() {
+    super.initState();
+    final savedName = ref.read(userNameProvider);
+    _nameController = TextEditingController(text: savedName.isEmpty ? '피크' : savedName);
+  }
 
   @override
   void dispose() {
@@ -21,11 +29,14 @@ class _ProfileSettingsScreenState extends State<ProfileSettingsScreen> {
     super.dispose();
   }
 
-  void _save() {
-    if (_nameController.text.trim().isEmpty) {
+  Future<void> _save() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('이름 또는 닉네임을 입력해주세요')));
       return;
     }
+    await ref.read(userNameProvider.notifier).update(name);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('프로필을 저장했어요')));
   }
 

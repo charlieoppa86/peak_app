@@ -230,6 +230,34 @@ final groupReservationsProvider = Provider<List<GroupReservation>>(
   (ref) => mockGroupReservations,
 );
 
+// ─── User name ───────────────────────────────────────────────────────────────
+
+const _kUserNameKey = 'user_name';
+
+class UserNameNotifier extends Notifier<String> {
+  @override
+  String build() {
+    _loadFromPrefs();
+    return '피크';
+  }
+
+  Future<void> _loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final name = prefs.getString(_kUserNameKey) ?? '';
+    if (name.isNotEmpty) state = name;
+  }
+
+  Future<void> update(String name) async {
+    state = name;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kUserNameKey, name);
+  }
+}
+
+final userNameProvider = NotifierProvider<UserNameNotifier, String>(
+  UserNameNotifier.new,
+);
+
 // ─── Location ────────────────────────────────────────────────────────────────
 
 typedef SelectedLocation = ({String city, String district});

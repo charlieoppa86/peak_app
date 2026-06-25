@@ -17,14 +17,16 @@ bool _isSameDay(DateTime a, DateTime b) =>
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 /// 홈 화면. 자체 상태 없음 — 모든 상태는 Riverpod provider에서 관리.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final name = ref.watch(userNameProvider);
+    final title = '$name님 안녕하세요';
     return Scaffold(
       appBar: AppBar(
-        title: const Text('홈'),
+        title: Text(title),
         actions: const [NotificationBellButton()],
       ),
       body: const Column(

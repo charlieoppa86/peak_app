@@ -222,11 +222,10 @@ class _ScheduleDetailView extends ConsumerWidget {
 
   String _buildInviteLink(RidingSchedule schedule) {
     const base = 'https://aulhqkkumomdbryxyskr.supabase.co/functions/v1/invite';
-    final id = schedule.id;
     final course = Uri.encodeComponent(schedule.courseName);
     final date = Uri.encodeComponent(_dateLabel(schedule.date));
     final time = Uri.encodeComponent(schedule.time);
-    return '$base/$id?course=$course&date=$date&time=$time';
+    return '$base/${schedule.id}?course=$course&date=$date&time=$time';
   }
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
