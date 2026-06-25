@@ -8,6 +8,7 @@ import '../../features/home/data/home_mock_data.dart';
 import '../../features/home/data/weather_recommendation_model.dart';
 import '../../features/home/data/weather_recommendation_repository.dart';
 import '../../features/notifications/data/notification_mock_data.dart';
+import '../../shared/data/region_mock_data.dart';
 import '../services/supabase_service.dart';
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
@@ -118,18 +119,31 @@ final weatherRecommendationRepositoryProvider =
 );
 
 /// 오늘 라이딩 추천 — Edge Function 호출. pull-to-refresh 시 ref.invalidate(이 provider).
+/// selectedLocationProvider가 바뀌면 해당 지역 좌표로 자동 재조회한다.
 class WeatherRecommendationNotifier
     extends AsyncNotifier<RidingRecommendation> {
   @override
-  Future<RidingRecommendation> build() => _fetch();
+  Future<RidingRecommendation> build() {
+    // 위치가 바뀔 때마다 이 provider가 재빌드되어 새 좌표로 API를 재호출한다
+    final location = ref.watch(selectedLocationProvider);
+    final coord = mockRegionCoords[location.city]?[location.district];
+    return ref.read(weatherRecommendationRepositoryProvider).fetch(
+          lat: coord?.lat,
+          lng: coord?.lng,
+        );
+  }
 
   Future<void> refresh() async {
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(_fetch);
+    state = await AsyncValue.guard(() {
+      final location = ref.read(selectedLocationProvider);
+      final coord = mockRegionCoords[location.city]?[location.district];
+      return ref.read(weatherRecommendationRepositoryProvider).fetch(
+            lat: coord?.lat,
+            lng: coord?.lng,
+          );
+    });
   }
-
-  Future<RidingRecommendation> _fetch() =>
-      ref.read(weatherRecommendationRepositoryProvider).fetch();
 }
 
 final weatherRecommendationProvider = AsyncNotifierProvider<
@@ -220,12 +234,31 @@ final groupReservationsProvider = Provider<List<GroupReservation>>(
 
 typedef SelectedLocation = ({String city, String district});
 
+const _kLocationCityKey = 'location_city_v1';
+const _kLocationDistrictKey = 'location_district_v1';
+
 class LocationNotifier extends Notifier<SelectedLocation> {
   @override
-  SelectedLocation build() => (city: '서울특별시', district: '마포구');
+  SelectedLocation build() {
+    _loadFromPrefs();
+    return (city: '서울특별시', district: '마포구');
+  }
 
-  void update(String city, String district) =>
+  Future<void> _loadFromPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final city = prefs.getString(_kLocationCityKey);
+    final district = prefs.getString(_kLocationDistrictKey);
+    if (city != null && district != null) {
       state = (city: city, district: district);
+    }
+  }
+
+  Future<void> update(String city, String district) async {
+    state = (city: city, district: district);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kLocationCityKey, city);
+    await prefs.setString(_kLocationDistrictKey, district);
+  }
 }
 
 final selectedLocationProvider =

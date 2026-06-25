@@ -26,9 +26,10 @@ class _LocationSettingsScreenState
     _district = loc.district;
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (_city == null || _district == null) return;
-    ref.read(selectedLocationProvider.notifier).update(_city!, _district!);
+    await ref.read(selectedLocationProvider.notifier).update(_city!, _district!);
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$_city $_district(으)로 변경했어요. 날씨 캘린더를 갱신했어요.')),
     );
