@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/auth_gate.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/services/admob_service.dart';
 import '../../../core/theme/app_theme.dart';
@@ -315,10 +316,18 @@ class _DateDetailPanel extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () => context.push(
-                    '/home/schedule/new',
-                    extra: {'date': day.date, 'type': ScheduleType.group},
-                  ),
+                  onPressed: () async {
+                    // 함께 달리기 생성은 로그인 게이트 적용 (US-002)
+                    if (!await ensureSignedIn(context,
+                        reason: '같이 달리기를 만들려면 카카오 로그인이 필요해요.')) {
+                      return;
+                    }
+                    if (!context.mounted) return;
+                    context.push(
+                      '/home/schedule/new',
+                      extra: {'date': day.date, 'type': ScheduleType.group},
+                    );
+                  },
                   icon: const Icon(Icons.groups_outlined, size: 16),
                   label: const Text('같이 달리기'),
                   style: FilledButton.styleFrom(

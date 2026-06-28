@@ -7,5 +7,11 @@ port = 54321
 [auth]
 enabled = true
 
+# 소셜 로그인 provider(카카오·애플)는 Supabase 대시보드 Authentication > Providers에서
+# 설정한다. config.toml(`config push`)은 provider별 secret을 필수로 요구하는데, 우리는
+# 네이티브 idToken 방식이라 secret을 쓰지 않으므로 config-as-code 대신 대시보드를 사용한다.
+# - Kakao:  Client ID = 카카오 REST API 키 (b987140dc2a628f0aa63245633beb5bf)
+# - Apple:  Client IDs = com.charlieoppa86.peak (번들 ID)
+
 [functions.weather-forecast]
 verify_jwt = false

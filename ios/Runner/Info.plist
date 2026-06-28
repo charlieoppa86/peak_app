@@ -5,7 +5,7 @@
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-8560405440054672~4228812202</string>
 	<key>NSUserTrackingUsageDescription</key>
-	<string>Peaktime은 광고 개인화를 위해 기기 광고 식별자(IDFA)를 사용합니다. 이 정보는 관심사에 맞는 배너 광고를 표시하는 데 사용되며, 라이딩 일정·날씨 등 앱의 핵심 기능과는 무관합니다. 허용하지 않아도 앱을 정상적으로 이용할 수 있으며, 거부 시 개인화되지 않은 광고가 표시됩니다. (선택 권한)</string>
+	<string>Peakday는 광고 개인화를 위해 기기 광고 식별자(IDFA)를 사용합니다. 이 정보는 관심사에 맞는 배너 광고를 표시하는 데 사용되며, 라이딩 일정·날씨 등 앱의 핵심 기능과는 무관합니다. 허용하지 않아도 앱을 정상적으로 이용할 수 있으며, 거부 시 개인화되지 않은 광고가 표시됩니다. (선택 권한)</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
@@ -70,6 +70,20 @@
 				<string>peak</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>kakao-login</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kakaoe941b08f8849d48f717f3088cd37710f</string>
+			</array>
+		</dict>
+	</array>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<!-- 카카오톡 앱으로 로그인/공유 전환 시 필요 -->
+		<string>kakaokompassauth</string>
+		<string>kakaolink</string>
 	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/auth_gate.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/invite_share_sheet.dart';
 import '../data/group_mock_data.dart';
@@ -15,7 +16,13 @@ class GroupDetailScreen extends StatelessWidget {
 
   GroupSchedule? get _group => mockGroupSchedules.where((g) => g.id == groupId).firstOrNull;
 
-  void _openInvite(BuildContext context, GroupSchedule group) {
+  Future<void> _openInvite(BuildContext context, GroupSchedule group) async {
+    // 그룹 초대 공유는 로그인 게이트 적용 (US-002)
+    if (!await ensureSignedIn(context,
+        reason: '초대를 공유하려면 카카오 로그인이 필요해요.')) {
+      return;
+    }
+    if (!context.mounted) return;
     showModalBottomSheet(
       context: context,
       showDragHandle: true,

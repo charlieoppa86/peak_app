@@ -40,9 +40,23 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <!-- 카카오 로그인 리다이렉트 핸들러 (카카오 계정 웹 로그인 → 앱 복귀) -->
+        <activity
+            android:name="com.kakao.sdk.flutter.AuthCodeCustomTabsActivity"
+            android:exported="true">
+            <intent-filter android:label="flutter_web_auth">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kakaoe941b08f8849d48f717f3088cd37710f" android:host="oauth" />
+            </intent-filter>
+        </activity>
+
     </application>
 
     <queries>
+        <!-- 카카오톡 앱 로그인/공유 전환 시 패키지 가시성 필요 -->
+        <package android:name="com.kakao.talk" />
         <!-- Flutter ProcessTextPlugin -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

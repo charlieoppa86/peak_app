@@ -74,3 +74,9 @@ ios/Runner/GoogleService-Info.plist
 android/key.properties
 *.jks
 *.keystore
+
+# Supabase CLI 임시 파일
+supabase/.temp/
+
+# Claude 어시스턴트 메모리
+memory/

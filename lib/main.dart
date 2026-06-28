@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'app.dart';
@@ -14,6 +15,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await dotenv.load(fileName: '.env');
+
+  // 카카오 SDK 초기화. 키 미설정(빈 문자열) 시에도 init은 안전하며, 실제 로그인
+  // 시도 시점에 AuthService가 키 유무를 검사한다. (키는 .env의 KAKAO_NATIVE_APP_KEY)
+  await KakaoSdk.init(nativeAppKey: AppConfig.kakaoNativeAppKey);
 
   await Future.wait([
     Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/auth/auth_gate.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/invite_share_sheet.dart';
@@ -199,16 +200,24 @@ class _ScheduleDetailView extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
-            onPressed: () => showModalBottomSheet(
-              context: context,
-              showDragHandle: true,
-              builder: (context) => InviteShareSheet(
-                title: schedule.courseName,
-                subtitle: '${_dateLabel(schedule.date)} · ${schedule.time}',
-                link: _buildInviteLink(schedule),
-                weatherScore: todayRec?.score ?? mockWeather?.score,
-              ),
-            ),
+            onPressed: () async {
+              // 일정 공유(초대)는 로그인 게이트 적용 (US-002)
+              if (!await ensureSignedIn(context,
+                  reason: '일정을 공유하려면 카카오 로그인이 필요해요.')) {
+                return;
+              }
+              if (!context.mounted) return;
+              showModalBottomSheet(
+                context: context,
+                showDragHandle: true,
+                builder: (context) => InviteShareSheet(
+                  title: schedule.courseName,
+                  subtitle: '${_dateLabel(schedule.date)} · ${schedule.time}',
+                  link: _buildInviteLink(schedule),
+                  weatherScore: todayRec?.score ?? mockWeather?.score,
+                ),
+              );
+            },
             icon: const Icon(Icons.ios_share_outlined),
             label: const Text('초대하기'),
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),

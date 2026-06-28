@@ -15,4 +15,9 @@ class SupabaseService {
   }
 
   static String? get currentUserId => client.auth.currentUser?.id;
+
+  /// 카카오 등으로 실제 로그인된 상태인지 여부.
+  /// 익명 세션(signInAnonymously)이거나 세션이 없으면 false.
+  /// 함께 달리기·공유 게이트의 통과 조건으로 사용한다 (US-002).
+  static bool get isSignedIn => client.auth.currentUser?.isAnonymous == false;
 }
