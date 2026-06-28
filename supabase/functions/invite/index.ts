@@ -100,10 +100,15 @@ serve(async (req: Request) => {
       background: #2e2e2e;
       color: #f0f0f0;
     }
-    .status {
+    .notice {
       font-size: 13px;
-      color: #888;
-      margin-top: 16px;
+      color: #aaa;
+      margin-top: 20px;
+      background: #2a2a2a;
+      border-radius: 10px;
+      padding: 12px 14px;
+      line-height: 1.6;
+      text-align: left;
     }
   </style>
 </head>
@@ -120,32 +125,18 @@ serve(async (req: Request) => {
 
     <div class="divider"></div>
 
-    <button class="btn btn-primary" onclick="openApp()">앱에서 참석 여부 답하기</button>
-    <a class="btn btn-secondary" href="${APP_STORE_URL}" id="store-btn" style="display:none">
+    <a class="btn btn-primary" href="${deepLink}" id="open-btn">
+      앱에서 참석 여부 답하기
+    </a>
+    <a class="btn btn-secondary" href="${APP_STORE_URL}">
       Peak 앱 다운로드
     </a>
 
-    <p class="status" id="status-msg">앱을 확인하는 중...</p>
+    <div class="notice">
+      💬 카카오톡에서 열리셨나요?<br>
+      오른쪽 하단 <strong>···</strong> → <strong>Safari로 열기</strong>를 탭해주세요.
+    </div>
   </div>
-
-  <script>
-    const deepLink = ${JSON.stringify(deepLink)};
-    const storeUrl = ${JSON.stringify(APP_STORE_URL)};
-
-    function openApp() {
-      window.location.href = deepLink;
-      // 앱이 없으면 1.8초 후 앱스토어로
-      setTimeout(() => {
-        document.getElementById('store-btn').style.display = 'block';
-        document.getElementById('status-msg').textContent = '앱이 설치되어 있지 않으신가요?';
-      }, 1800);
-    }
-
-    // 페이지 로드 시 자동으로 앱 열기 시도
-    window.addEventListener('load', () => {
-      setTimeout(openApp, 300);
-    });
-  </script>
 </body>
 </html>`;
 
