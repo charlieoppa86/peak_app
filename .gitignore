@@ -56,9 +56,8 @@ ios/.symlinks/
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 
-# macOS
-macos/Pods/
-macos/.symlinks/
+# macOS (데스크톱 지원 미사용 — 전체 무시)
+macos/
 
 # Flutter generated
 .flutter-plugins
