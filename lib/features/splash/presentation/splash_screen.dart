@@ -1,19 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/services/admob_service.dart' show requestAttThenInitAds;
+import '../../../core/providers/app_providers.dart';
+import '../../../core/services/admob_service.dart'
+    show requestAttThenInitAds, bannerAdProvider;
 import '../data/splash_service.dart';
 
 /// 스플래시 — 앱 진입 직후 버전 체크·네트워크 체크·데이터 프리패치를 병렬 처리.
 /// 모두 완료되면 홈으로 이동. 문제 발생 시 적절한 다이얼로그를 노출하고 블록.
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
   late final AnimationController _ctrl;
   late final Animation<double> _fade;
 
@@ -43,9 +46,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       await requestAttThenInitAds();
       if (!mounted) return;
 
+      // AdMob 초기화 직후 배너를 미리 로드 시작 → 홈 진입 시 즉시 표시.
+      // best-effort라 결과를 끝까지 기다리지 않고 아래에서 짧게만 대기한다.
+      final adFuture = ref.read(bannerAdProvider.notifier).preload();
+
       final networkFuture = SplashService.checkNetwork();
       final versionFuture = SplashService.checkVersion();
-      final prefetchFuture = _safePrefetch();
 
       final hasNetwork = await networkFuture;
       if (!mounted) return;
@@ -63,7 +69,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       _setStatus('버전 확인 중...');
 
       final versionStatus = await versionFuture;
-      await prefetchFuture;
+      if (!mounted) return;
+
+      // 오늘의 날씨가 실제 로드될 때까지 스플래시 유지(실패/지연 시 타임아웃 후 진행).
+      _setStatus('날씨 정보 불러오는 중...');
+      await _prefetchWeather();
+      if (!mounted) return;
+
+      // 배너 광고가 준비될 때까지 잠깐 더 대기(준비되면 홈에서 곧바로 노출).
+      await adFuture.timeout(const Duration(seconds: 2), onTimeout: () {});
       if (!mounted) return;
 
       switch (versionStatus) {
@@ -89,10 +103,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     }
   }
 
-  // prefetch 실패는 로그만 남기고 skip
-  Future<void> _safePrefetch() async {
+  // 오늘의 날씨(weatherRecommendationProvider)를 실제로 로드해 캐시에 채운다.
+  // 비-autoDispose provider라 여기서 한 번 로드하면 홈에서 스켈레톤 없이 즉시 표시된다.
+  // 실패/지연 시에는 홈으로 넘어가 홈의 에러 카드·재시도 UI가 처리한다.
+  Future<void> _prefetchWeather() async {
     try {
-      await SplashService.prefetchHomeData();
+      await ref
+          .read(weatherRecommendationProvider.future)
+          .timeout(const Duration(seconds: 10));
     } catch (_) {}
   }
 
